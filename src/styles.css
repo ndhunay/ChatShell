@@ -1,0 +1,35 @@
+/*
+ * styles.css — ChatShell extension styles.
+ *
+ * All hiding / restyling is done via classes added by the content script.
+ * This keeps style mutations declarative and easy to override or extend.
+ *
+ * ADDING NEW RULES:
+ *   1. Define a CSS class below (e.g. .chatshell-sidebar-hidden).
+ *   2. In your JS rule function, add that class to the target element.
+ *   3. The class name convention is: chatshell-<purpose>
+ */
+
+/* ── Hide rule: model selector ──────────────────────────────────────────── */
+
+.chatshell-hidden {
+  display: none !important;
+}
+
+/*
+ * Alternative soft-hide — keeps the element in the layout flow but invisible.
+ * Useful if removing the element causes layout shifts.
+ * Swap to this class in the JS rule if needed.
+ */
+.chatshell-invisible {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ── Future rules ───────────────────────────────────────────────────────── */
+
+/*
+ * .chatshell-sidebar-hidden { display: none !important; }
+ * .chatshell-header-restyled { background: #1a1a2e !important; }
+ * .chatshell-toolbar { position: fixed; top: 0; right: 0; z-index: 10000; }
+ */

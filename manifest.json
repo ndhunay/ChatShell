@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "ChatShell – ChatGPT UI Customizer",
+  "version": "1.0.0",
+  "description": "Lightweight UI customization layer for ChatGPT. Hides the model selector and supports future UI rules.",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "css": ["src/styles.css"],
+      "js": [
+        "src/selectors.js",
+        "src/dom-utils.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {}
+}
