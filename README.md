@@ -1,30 +1,55 @@
-# ChatShell – ChatGPT UI Customizer
+# ChatShell – ChatGPT Power Tools
 
-A lightweight Chrome extension (Manifest V3) that overlays UI customizations on the ChatGPT web interface. The first rule hides the "ChatGPT" model selector in the top navigation bar.
+A lightweight Chrome extension (Manifest V3) that adds power-user features to the ChatGPT web interface: chat organization, rewrite actions, clean exports, and UI declutter toggles.
 
-## Architecture
+## What ChatShell Does
 
-```
-manifest.json          Extension manifest — runs only on chatgpt.com
-src/
-  selectors.js         Centralized selector configs (CSS, ARIA, text fallback)
-  dom-utils.js         Layered element detection + MutationObserver helper
-  styles.css           CSS classes applied by the extension (chatshell-hidden, etc.)
-  content.js           Entry point — defines UI rules and applies them
-```
+ChatShell overlays a non-intrusive customization layer on top of `chatgpt.com`. It does **not** modify any ChatGPT server data — all metadata, settings, and organizational structure are stored locally in your browser.
 
-## How it works
+## Feature Overview
 
-1. **Layered detection** — Each UI target is defined in `selectors.js` with three fallback strategies:
-   - CSS selectors (data-testid, stable attributes)
-   - ARIA-based matching (role + aria-label)
-   - Scoped text matching (finds "ChatGPT" text only inside nav/header, not in chat messages)
+### 📂 Library — Chat Organization
+- **Folders**: Create folders to organize conversations by project or topic. Six default folders are seeded on first run.
+- **Tags**: Add freeform tags to any chat for cross-cutting categorization.
+- **Pins**: Pin important chats so they always sort to the top.
+- **Filter & Search**: Browse previously seen chats by folder, tag, pinned state, or search by title/tags.
+- **Quick Assign**: Assign folders and tags to the current chat directly from the side panel.
 
-2. **CSS class injection** — Instead of mutating inline styles, the extension adds classes like `chatshell-hidden`. All visual behavior is defined in `styles.css`.
+### ✏️ Rewrite — Instruction Templates
+A rewrite action bar near the composer lets you prepend an instruction template to your text with one click. The transform is visible and editable before sending.
 
-3. **MutationObserver** — A debounced observer watches for DOM changes and re-applies all rules, handling SPA navigation and dynamic re-renders.
+Built-in rewrite actions:
+| Action | What it does |
+|---|---|
+| Tighten | Tighter, clearer, more concise |
+| More executive | Strategic, outcome-oriented |
+| Direct Mode | Sharp, actionable, clear |
+| Inspirational Leadership | Narrative, motivational, warm |
+| Make warmer | Empathetic, human |
+| Add structure | Headings, bullets, numbered steps |
+| Sharpen critique | Specific, evidence-based |
+| Shorten 30% | Reduce length while preserving key points |
 
-4. **Silent failure** — If a target element isn't found, nothing happens. The page continues to work normally.
+### 📤 Export — Clean Output
+Per-response export buttons appear on every assistant message:
+- **📋 Text** — Copy as clean plain text
+- **📝 MD** — Copy as markdown with formatting preserved
+- **✉️ Email** — Copy email-ready text (no markdown artifacts)
+- **💾 .md** — Download as a `.md` file
+
+Bulk export of all responses is available in the Export panel tab.
+
+### 👁 View — UI Controls
+Toggleable rules to declutter the ChatGPT interface:
+| Toggle | Description |
+|---|---|
+| Hide model selector | Remove the "ChatGPT" model picker from the top nav |
+| Hide top header clutter | Minimize the top header bar |
+| Widen chat area | Expand conversations to use more horizontal space |
+| Compact spacing | Reduce vertical padding between messages |
+| Reduce left-nav noise | Simplify the sidebar |
+
+All toggles persist across page reloads.
 
 ## Installation
 
@@ -33,7 +58,93 @@ src/
 3. Enable **Developer mode** (toggle in the top-right corner).
 4. Click **Load unpacked**.
 5. Select the root project folder (the one containing `manifest.json`).
-6. Navigate to [chatgpt.com](https://chatgpt.com) — the model selector should be hidden.
+6. Navigate to [chatgpt.com](https://chatgpt.com) — the ChatShell toggle button (⚡) appears on the right edge.
+
+## Permissions
+
+| Permission | Why |
+|---|---|
+| `storage` | Persist settings, folders, tags, pins, and chat metadata locally in the browser. No data leaves your machine. |
+
+The extension requires no other permissions. It runs only on `chatgpt.com` via content scripts.
+
+## Architecture
+
+```
+manifest.json              Extension manifest — Manifest V3, chatgpt.com only
+src/
+  selectors.js             Centralized DOM selector configs (CSS, ARIA, text fallback)
+  dom-utils.js             Layered element detection, MutationObserver, DOM helpers
+  storage.js               chrome.storage.local persistence layer and schema
+  rules.js                 Modular UI rule engine with toggle definitions
+  library.js               Chat organization: folders, tags, pins, filtering
+  rewrite-actions.js       Config-driven rewrite instruction templates
+  export-actions.js        Per-response export: text, markdown, email, file
+  panel.js                 Collapsible side panel UI with tabbed sections
+  content.js               Entry point — orchestrates all modules
+  styles.css               All extension styles (chs-* prefix)
+```
+
+### Module dependency order
+
+```
+selectors.js  →  dom-utils.js  →  storage.js  →  rules.js
+                                                    ↓
+                  library.js  ←  rewrite-actions.js  ←  export-actions.js
+                                                    ↓
+                               panel.js  →  content.js
+```
+
+### Key patterns
+
+- **Layered detection**: Each DOM target is found via CSS selectors → ARIA matching → scoped text fallback, so the extension survives ChatGPT UI changes.
+- **CSS class injection**: Visual rules use `chs-*` classes rather than inline style mutation.
+- **Idempotent mounts**: All UI mount functions check for existing elements before creating new ones.
+- **MutationObserver**: A debounced observer re-applies all features on DOM changes, handling SPA navigation.
+- **Rule engine**: UI toggles are data-driven — each rule is a config object with `apply(enabled)`.
+
+## How to Add a New UI Rule
+
+1. Add a CSS class in `src/styles.css`:
+   ```css
+   body.chs-focus-mode [data-message-author-role="user"] {
+     opacity: 0.5;
+   }
+   ```
+
+2. Add a rule definition in `src/rules.js`:
+   ```js
+   {
+     id: 'focusMode',
+     label: 'Focus mode',
+     description: 'Dim user messages to focus on assistant responses.',
+     defaultEnabled: false,
+     apply(enabled) {
+       document.body.classList.toggle('chs-focus-mode', enabled);
+     }
+   }
+   ```
+
+3. Add the default to `STORAGE_DEFAULTS.settings.rules` in `src/storage.js`:
+   ```js
+   focusMode: false
+   ```
+
+The rule automatically appears in the View panel tab with a toggle switch.
+
+## How to Add a New Rewrite Action
+
+Add an entry to `REWRITE_ACTIONS` in `src/rewrite-actions.js`:
+
+```js
+{
+  id: 'technical',
+  label: 'Make technical',
+  instruction: 'Rewrite the following in a precise, technical style with specific details and terminology:\n\n'
+}
+```
+
+The action automatically appears in the rewrite bar and the Rewrite panel tab.
 
 ## Debugging
 
@@ -44,65 +155,27 @@ const DEBUG = true;
 ```
 
 Then open the browser console on chatgpt.com to see logs prefixed with `[ChatShell]`:
-- Extension load confirmation
-- Which detection strategy found the element
-- When rules are applied
-- When the MutationObserver re-runs
+- Extension load / initialization
+- DOM mutation observer activity
+- Rule application
+- Panel mount
+- Rewrite action execution
+- Export action execution
+- Storage load/save events
 
-## Updating selectors
+## Known Limitations
 
-When the ChatGPT UI changes:
-
-1. Open DevTools on chatgpt.com and inspect the model selector element.
-2. Look for stable attributes: `data-testid`, `aria-label`, unique class names.
-3. Update the corresponding entry in `src/selectors.js`:
-   - Add new CSS selectors to `cssSelectors` (most stable, tried first).
-   - Update `ariaMatch.labelPattern` if the ARIA label changed.
-   - Update `textMatch.text` if the display text changed (e.g., "ChatGPT" → "GPT-5").
-   - Adjust `textMatch.scopeSelector` if the nav structure changed.
-
-## Adding new UI rules
-
-1. **Define a selector** in `src/selectors.js`:
-   ```js
-   sidePanel: {
-     cssSelectors: ['nav[aria-label="Sidebar"]'],
-     textMatch: { text: 'History', scopeSelector: 'nav', maxAncestorDepth: 3, maxHeight: 600 }
-   }
-   ```
-
-2. **Add CSS** in `src/styles.css`:
-   ```css
-   .chatshell-sidebar-collapsed { width: 0 !important; overflow: hidden !important; }
-   ```
-
-3. **Write a rule function** in `src/content.js`:
-   ```js
-   function applyCollapseSidebar() {
-     const el = findElement('sidePanel');
-     if (el && !el.classList.contains('chatshell-sidebar-collapsed')) {
-       el.classList.add('chatshell-sidebar-collapsed');
-       log('Rule applied: sidebar collapsed');
-     }
-   }
-   ```
-
-4. **Register it** in `applyRules()`:
-   ```js
-   function applyRules() {
-     applyHideModelSelector();
-     applyCollapseSidebar(); // new
-   }
-   ```
+- **ChatGPT DOM changes**: ChatGPT frequently updates its UI markup. If features stop working, update the selectors in `src/selectors.js`. The layered detection strategy provides resilience, but major layout changes may require selector updates.
+- **Composer interaction**: Setting text in ChatGPT's ProseMirror editor requires workarounds (execCommand, synthetic events). If ChatGPT changes their editor framework, `setComposerText()` in `rewrite-actions.js` may need updating.
+- **No server sync**: All ChatShell data is local to the browser. It does not sync across devices.
+- **Chat identity**: Chat metadata is keyed by conversation ID from the URL (`/c/<uuid>`). Chats without a URL ID (e.g., a new unsaved chat) cannot be tracked until they receive one.
+- **Export fidelity**: Markdown extraction is heuristic-based. Complex formatting (tables, images, LaTeX) may not convert perfectly.
+- **Content script isolation**: The extension runs in the same JS context as the content script world. It cannot directly access ChatGPT's React state.
 
 ## Future Enhancements
 
-1. **Options page** — Let users toggle individual UI rules on/off via a popup or options page, with settings persisted in `chrome.storage.sync`.
-
-2. **Rule presets** — Bundle curated rule sets (e.g., "Minimal mode", "Focus mode", "Presentation mode") that users can switch between with one click.
-
-3. **Custom CSS editor** — Provide a textarea in the popup where users can inject their own CSS, stored per-site and applied alongside the built-in rules.
-
-4. **Keyboard shortcuts** — Register Chrome commands (via `manifest.json` `commands`) to toggle rules or the entire extension without opening the popup.
-
-5. **Auto-update selectors** — Ship a small remote config (JSON hosted on GitHub) that maps ChatGPT DOM versions to working selectors, so the extension can self-heal when the UI changes without requiring a full extension update.
+1. **Options popup** — A browser-action popup for quick access to toggles without opening the full panel.
+2. **Keyboard shortcuts** — Chrome commands for common actions (toggle panel, apply rewrite, quick-pin).
+3. **Import/export library** — Backup and restore folders, tags, and chat metadata as JSON.
+4. **Custom rewrite templates** — Let users create and edit their own rewrite instruction templates.
+5. **Theme support** — Light mode panel variant that matches ChatGPT's light theme.
