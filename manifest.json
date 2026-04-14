@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "ChatShell – ChatGPT UI Customizer",
-  "version": "1.0.0",
-  "description": "Lightweight UI customization layer for ChatGPT. Hides the model selector and supports future UI rules.",
-  "permissions": [],
+  "name": "ChatShell – ChatGPT Power Tools",
+  "version": "3.1.0",
+  "description": "Power-user shell for ChatGPT: organize chats, rewrite actions, clean exports, UI declutter toggles, and configurable settings.",
+  "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": ["https://chatgpt.com/*"],
@@ -11,6 +11,12 @@
       "js": [
         "src/selectors.js",
         "src/dom-utils.js",
+        "src/storage.js",
+        "src/rules.js",
+        "src/library.js",
+        "src/rewrite-actions.js",
+        "src/export-actions.js",
+        "src/panel.js",
         "src/content.js"
       ],
       "run_at": "document_idle"
