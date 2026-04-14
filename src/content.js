@@ -1,74 +1,93 @@
 /**
  * content.js — Entry point for the ChatShell content script.
  *
- * Responsibilities:
- *   1. Define UI customization rules.
- *   2. Apply all rules on load.
- *   3. Re-apply rules whenever the SPA re-renders.
- *
- * ADDING A NEW RULE:
- *   1. Write a function like applyHideModelSelector() below.
- *   2. Add a corresponding selector config in selectors.js.
- *   3. Add any needed CSS classes in styles.css.
- *   4. Register the function inside applyRules().
+ * Orchestrates all modules:
+ *   1. Load settings from storage
+ *   2. Seed default data on first run
+ *   3. Initialize rewrite presets from settings
+ *   4. Apply UI rules
+ *   5. Mount panel, rewrite bar, and export buttons
+ *   6. Observe DOM mutations to keep everything in sync
  */
 
-// ── UI Rules ─────────────────────────────────────────────────────────────────
+let appState = null;
 
-/**
- * Rule: Hide the "ChatGPT" model selector in the top navigation bar.
- */
-function applyHideModelSelector() {
-  const el = findElement('modelSelector');
-  if (!el) return;
-
-  if (!el.classList.contains('chatshell-hidden')) {
-    el.classList.add('chatshell-hidden');
-    log('Rule applied: model selector hidden');
-  }
-}
-
-// ── Future rule examples ─────────────────────────────────────────────────────
-//
-// function applyHideSidebar() {
-//   const el = findElement('sidePanel');
-//   if (!el) return;
-//   el.classList.add('chatshell-hidden');
-//   log('Rule applied: sidebar hidden');
-// }
-//
-// function applyCustomToolbar() {
-//   if (document.getElementById('chatshell-toolbar')) return; // already injected
-//   const toolbar = document.createElement('div');
-//   toolbar.id = 'chatshell-toolbar';
-//   toolbar.classList.add('chatshell-toolbar');
-//   toolbar.textContent = 'ChatShell';
-//   document.body.appendChild(toolbar);
-//   log('Rule applied: custom toolbar injected');
-// }
-
-// ── Rule runner ──────────────────────────────────────────────────────────────
-
-/**
- * Apply all registered UI rules.
- * Called on initial load and on every observed DOM mutation.
- */
-function applyRules() {
-  applyHideModelSelector();
-
-  // ── Register future rules here ──
-  // applyHideSidebar();
-  // applyCustomToolbar();
-}
-
-// ── Bootstrap ────────────────────────────────────────────────────────────────
-
-(function init() {
+(async function init() {
   log('ChatShell extension loaded');
 
-  // Initial application
-  applyRules();
+  // Load persisted state
+  appState = await storageLoad();
 
-  // Re-apply on SPA navigation and DOM re-renders
-  observeDOM(applyRules);
+  // Seed default folders on first run
+  appState.library = await seedDefaultFolders(appState.library);
+
+  // Initialize rewrite presets from settings
+  refreshRewriteActions(appState.settings);
+
+  // Track current chat
+  const convId = getConversationId();
+  if (convId) {
+    getChatMeta(appState.chatMeta, convId);
+    await storageSave('chatMeta', appState.chatMeta);
+  }
+
+  // Share state with modules
+  setLibraryState(appState);
+  setPanelState(appState, onSettingsChange);
+
+  // Initial application
+  applyAll();
+
+  // Watch for DOM changes (SPA navigation, re-renders)
+  observeDOM(applyAll);
+
+  // Watch for URL changes (SPA navigation without full page reload)
+  let lastUrl = location.href;
+  const urlObserver = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      log('URL changed \u2014 re-applying');
+      const newConvId = getConversationId();
+      if (newConvId) {
+        getChatMeta(appState.chatMeta, newConvId);
+        storageSave('chatMeta', appState.chatMeta);
+      }
+      applyAll();
+    }
+  });
+  urlObserver.observe(document.body, { childList: true, subtree: true });
+
+  log('ChatShell fully initialized');
 })();
+
+/**
+ * Apply all ChatShell features. Called on load and on DOM mutations.
+ * Must be idempotent.
+ */
+function applyAll() {
+  if (!appState) return;
+
+  // 1. UI rules (toggles)
+  applyUiRules(appState.settings.rules);
+
+  // 2. Header title (only shows when model selector is hidden)
+  const selectorHidden = appState.settings.rules.hideModelSelector !== false;
+  applyHeaderTitle(appState.settings.headerTitle || '', selectorHidden);
+
+  // 3. Panel
+  mountPanel();
+
+  // 4. Rewrite bar
+  mountRewriteBar();
+
+  // 5. Export buttons
+  mountAllExportButtons();
+}
+
+/**
+ * Called when settings change from the panel.
+ */
+function onSettingsChange() {
+  if (!appState) return;
+  applyUiRules(appState.settings.rules);
+}

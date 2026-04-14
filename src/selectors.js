@@ -14,44 +14,170 @@
 
 // eslint-disable-next-line no-var
 var SELECTORS = {
-  /**
-   * Model selector — the button/element in the top nav that displays "ChatGPT"
-   * and opens the model picker dropdown.
-   *
-   * Detection strategy (layered, first match wins):
-   *  1. CSS: data-testid attribute (most stable if present)
-   *  2. Aria: button with an aria-label containing "Model" or "model"
-   *  3. Text: element inside the top nav whose trimmed text is exactly "ChatGPT"
-   */
+
+  // ── Header / top nav ─────────────────────────────────────────────────────
+
   modelSelector: {
-    // Layer 1 — stable attributes / test IDs (update these when ChatGPT ships new markup)
     cssSelectors: [
       '[data-testid="model-selector"]',
       'button[data-testid="model-switcher"]',
       'nav button[data-testid*="model"]'
     ],
-
-    // Layer 2 — ARIA-based matching
     ariaMatch: {
       role: 'button',
       labelPattern: /model|Model/
     },
-
-    // Layer 3 — cautious text fallback
     textMatch: {
       text: 'ChatGPT',
-      // Only search inside the top nav / header area to avoid hiding chat content.
       scopeSelector: 'nav, header, [role="banner"], main > div:first-child',
-      // Must be a direct-ish container (button, div with role, anchor) — not a
-      // giant wrapper. Max depth from the text node to the element we hide.
       maxAncestorDepth: 4,
-      // Minimum selector specificity: the matched element should be "small"
-      // (i.e. not the whole page). We check offsetHeight as a sanity bound.
       maxHeight: 80
     }
-  }
+  },
 
-  // ── Future selectors ──────────────────────────────────────────────────
-  // sidePanel: { cssSelectors: [...], ariaMatch: {...}, textMatch: {...} },
-  // headerActions: { ... },
+  // ── Main content ─────────────────────────────────────────────────────────
+
+  chatArea: {
+    cssSelectors: [
+      '[role="presentation"]',
+      'main .flex.flex-col',
+      'main'
+    ]
+  },
+
+  // ── Sidebar / left nav ───────────────────────────────────────────────────
+
+  sidebar: {
+    cssSelectors: [
+      'nav[aria-label="Chat history"]',
+      'nav',
+      '[class*="sidebar"]'
+    ]
+  },
+
+  /**
+   * Sidebar nav items — used by sidebar-hide rules.
+   *
+   * Each sidebar item selector uses a layered approach:
+   *   1. Stable CSS selectors (data-testid, href patterns)
+   *   2. ARIA-based matching
+   *   3. Text-based fallback scoped strictly to the sidebar nav
+   *
+   * IMPORTANT: text matching for sidebar items is scoped to `nav` elements only,
+   * never the full page, to avoid hiding chat content or unrelated UI.
+   */
+  sidebarLibrary: {
+    cssSelectors: [
+      'nav a[href="/library"]',
+      'nav a[href^="/library"]',
+      'nav a[data-testid="library"]',
+      'nav [data-testid*="library"]'
+    ],
+    textMatch: {
+      text: 'Library',
+      scopeSelector: 'nav',
+      maxAncestorDepth: 3,
+      maxHeight: 50
+    }
+  },
+
+  sidebarApps: {
+    cssSelectors: [
+      'nav a[href="/apps"]',
+      'nav a[href^="/apps"]',
+      'nav a[data-testid="apps"]',
+      'nav [data-testid*="apps"]'
+    ],
+    textMatch: {
+      text: 'Apps',
+      scopeSelector: 'nav',
+      maxAncestorDepth: 3,
+      maxHeight: 50
+    }
+  },
+
+  sidebarDeepResearch: {
+    cssSelectors: [
+      'nav a[href*="deep-research"]',
+      'nav a[data-testid*="deep-research"]',
+      'nav [data-testid*="deep-research"]'
+    ],
+    textMatch: {
+      text: 'Deep research',
+      scopeSelector: 'nav',
+      maxAncestorDepth: 4,
+      maxHeight: 60
+    }
+  },
+
+  sidebarGPTs: {
+    cssSelectors: [
+      'nav a[href="/gpts/discovery"]',
+      'nav a[href="/gpts/mine"]',
+      'nav a[href^="/gpts"]',
+      'nav a[data-testid*="gpt"]',
+      'nav [data-testid*="explore"]'
+    ],
+    ariaMatch: {
+      role: 'link',
+      labelPattern: /GPTs|Explore GPTs/i
+    },
+    textMatch: {
+      text: 'Explore GPTs',
+      scopeSelector: 'nav',
+      maxAncestorDepth: 4,
+      maxHeight: 60
+    }
+  },
+
+  /**
+   * Footer disclaimer — the "ChatGPT can make mistakes..." text below the composer.
+   * Scoped to the main content area, not the sidebar.
+   */
+  footerDisclaimer: {
+    cssSelectors: [
+      'main .text-token-text-secondary.text-xs',
+      'main .text-xs.text-token-text-secondary',
+      'main div.text-center.text-xs',
+      'main form ~ div.text-xs'
+    ],
+    textMatch: {
+      text: 'ChatGPT can make mistakes',
+      scopeSelector: 'main',
+      maxAncestorDepth: 3,
+      maxHeight: 50,
+      partial: true
+    }
+  },
+
+  // ── Composer ──────────────────────────────────────────────────────────────
+
+  composer: {
+    cssSelectors: [
+      '#prompt-textarea',
+      '[id="prompt-textarea"]',
+      'textarea[data-id="root"]',
+      'div[contenteditable="true"][id="prompt-textarea"]',
+      'form textarea',
+      'div[contenteditable="true"]'
+    ]
+  },
+
+  // ── Messages ─────────────────────────────────────────────────────────────
+
+  assistantMessages: {
+    cssSelectors: [
+      '[data-message-author-role="assistant"]',
+      'div[data-message-id][data-message-author-role="assistant"]'
+    ]
+  },
+
+  conversationListItems: {
+    cssSelectors: [
+      'nav li a[href^="/c/"]',
+      'nav a[href^="/c/"]',
+      'nav ol li a',
+      'nav li a'
+    ]
+  }
 };
